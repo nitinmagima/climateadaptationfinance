@@ -1,5 +1,6 @@
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 import streamlit as st
 import plotly.express as px
@@ -21,6 +22,7 @@ climate_df = data.parse('Climate Index')
 # Apply Min-Max scaling
 scaler = MinMaxScaler(feature_range=(0, 100))
 numeric_columns = climate_df.select_dtypes(include=[float, int]).columns
+print(numeric_columns)
 climate_df[numeric_columns] = scaler.fit_transform(climate_df[numeric_columns])
 
 # Merge the datasets on the 'Country' column
@@ -29,8 +31,10 @@ merged_df = governance_df.merge(finance_df, on="Country").merge(climate_df, on="
 # Allow user to select categories for clustering
 st.title("Climate Adaptation Financial Vulnerability 2024 - Clustering Analysis")
 
-# Short explanation about vulnerability scale
-st.write("Note: In this analysis, all values are between 0 to 100. A score of **100** represents the most vulnerable conditions, while a score of **0** represents the least vulnerable conditions.")
+# Short explanation about the process
+st.write("This dashboard performs clustering analysis by merging publicly available governance, finance, and climate data for various countries. Numeric features are scaled to values between 0 and 100, where **100** indicates the most vulnerable and **0** the least vulnerable conditions. Clustering is applied to group countries with similar characteristics, and missing values are handled by imputing with the column median to ensure completeness. Users can select categories and clusters to explore the map and charts below.")
+
+st.write("Further documentation of variables can be found [here](https://google.com).")
 
 
 st.write("Select one or more categories to include in clustering:")
@@ -53,6 +57,7 @@ else:
     st.error("Please select at least one category for clustering.")
     st.stop()
 
+# Perform PCA and K-Means Clustering
 # Drop the "Country" column for clustering
 clustering_data = combined_df.drop(columns=["Country"])
 
@@ -63,16 +68,40 @@ clustering_data_imputed = clustering_data.fillna(clustering_data.median())
 scaler = StandardScaler()
 normalized_features = scaler.fit_transform(clustering_data_imputed)
 
+# Optimize the number of PCA components
+explained_variance = []
+for n in range(1, min(len(normalized_features[0]), 11)):
+    pca = PCA(n_components=n)
+    pca.fit(normalized_features)
+    explained_variance.append(sum(pca.explained_variance_ratio_))
+
+# Plot Explained Variance to Find Optimal Components
+st.subheader("Explained Variance for PCA Components")
+st.write("Principal Component Analysis (PCA) reduces the dimensionality of the dataset by transforming it into a smaller set of components while retaining most of the variance. The explained variance indicates how much information (variance) each principal component captures. This section helps you identify the optimal number of components to balance simplicity and data representation.")
+pca_fig = go.Figure()
+pca_fig.add_trace(go.Scatter(x=list(range(1, len(explained_variance) + 1)), y=explained_variance, mode='lines+markers', name='Explained Variance'))
+pca_fig.update_layout(title="PCA Explained Variance", xaxis_title="Number of Components", yaxis_title="Cumulative Explained Variance", template="plotly_dark")
+st.plotly_chart(pca_fig)
+
+# Use optimal number of components for PCA
+optimal_components = st.slider("Select Number of PCA Components", min_value=1, max_value=len(explained_variance), value=2)
+pca = PCA(n_components=optimal_components)
+pca_features = pca.fit_transform(normalized_features)
+
 # Determine the optimal number of clusters using the Elbow Method
 inertia = []
 cluster_range = range(1, 11)
 for k in cluster_range:
     kmeans = KMeans(n_clusters=k, random_state=42)
-    kmeans.fit(normalized_features)
+    kmeans.fit(pca_features)
     inertia.append(kmeans.inertia_)
 
 # Plot the Elbow Method using Plotly
 st.subheader("Elbow Method")
+
+st.write("The Elbow Method is a technique used to determine the optimal number of clusters for K-Means clustering. It plots the sum of squared distances (inertia) between data points and their assigned cluster centers as the number of clusters increases. The 'elbow point,' where the rate of decrease slows significantly, suggests the best cluster count, balancing accuracy and simplicity.")
+
+
 elbow_figure = go.Figure()
 elbow_figure.add_trace(go.Scatter(
     x=list(cluster_range),
@@ -99,7 +128,10 @@ cluster_labels = kmeans.fit_predict(normalized_features)
 combined_df["Cluster"] = cluster_labels
 
 # Interactive Map
-st.subheader("Geospatial Clustering of Countries")
+st.subheader("Geospatial Visualization of Clustering of Countries")
+
+st.write("Geospatial maps allows us to visualize and analyze patterns spatially across countries by grouping them based on governance, finance, and climate vulnerabilities. This helps identify regional trends and relationships that are vital for targeted policy-making and resource allocation.")
+
 country_geo_data = combined_df.copy()
 country_geo_data["Cluster"] = country_geo_data["Cluster"].astype(str)  # Convert cluster to string for coloring
 
@@ -126,8 +158,12 @@ map_figure.update_layout(
 )
 st.plotly_chart(map_figure)
 
+# Short explanation about vulnerability scale
+st.write("Note: In these  charts, a score of **100** represents the most vulnerable or least favorable conditions, while a score of **0** represents the least vulnerable or most favorable conditions.")
+
 # Boxplots for Feature Distribution by Cluster
 st.subheader("Feature Distribution by Cluster")
+st.write("This visualization shows the distribution of selected features across different clusters. By examining the spread of values for each feature, users can gain insights into the characteristics that differentiate clusters and identify patterns within each cluster group.")
 feature = st.selectbox("Select a Feature", clustering_data_imputed.columns)
 boxplot_figure = px.box(
     combined_df,
@@ -143,6 +179,10 @@ st.plotly_chart(boxplot_figure)
 
 # Radar Charts for Governance, Finance, and Climate
 st.subheader("Radar Charts")
+
+# Radar Charts Note
+st.write("Radar charts provide a visual summary of how countries perform across various governance, finance, and climate metrics. Each axis represents a feature, and the filled area indicates the average values for the selected cluster, scaled between 0 (least vulnerable) and 100 (most vulnerable). These charts help identify strengths and vulnerabilities within clusters.")
+
 
 # Select only numeric columns for aggregation
 numeric_df = combined_df.select_dtypes(include=[np.number])
@@ -250,6 +290,9 @@ else:
 # Heatmap for Correlation Analysis
 st.subheader("Explore Correlation of Categories for Selected Cluster")
 
+st.write("This section examines the correlations between selected categories within a specific cluster. By analyzing these correlations, users can understand how features within governance, finance, or climate interact, identifying strong relationships or dependencies that might influence policy or decision-making.")
+
+
 # Dropdowns to select categories for x and y axes
 axis_options = {
     "Governance": governance_df.columns.tolist(),
@@ -310,6 +353,10 @@ else:
 
 # Interactive Filters and Dropdowns
 st.subheader("Explore Variables for Selected Cluster")
+
+st.write("This section allows users to investigate specific variables within a selected cluster. By focusing on particular features, users can delve deeper into the detailed metrics and characteristics that define the cluster, aiding in nuanced analysis and targeted insights.")
+
+
 governance_columns = [
     "Country", "Government Effectiveness", "Rule of Law", "Regulatory quality",
     "Political Stability and Absence of Violence/Terrorism", "Voice and accountability\nControl of Corruption",
@@ -346,3 +393,11 @@ columns_to_include = st.multiselect(
 )
 filtered_data = combined_df[combined_df["Cluster"] == cluster_filter][columns_to_include]
 st.write(filtered_data)
+
+# Add a copyright line at the bottom of the page
+st.markdown(
+    "<div style='text-align: center; margin-top: 50px; font-size: 12px; color: gray;'>"
+    "© 2024 Columbia Climate School, Columbia University. All rights reserved."
+    "</div>",
+    unsafe_allow_html=True
+)
