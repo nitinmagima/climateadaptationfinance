@@ -10,7 +10,7 @@ import numpy as np
 st.set_page_config(
     page_title="Climate Adaptation Finance 2024",
     page_icon="🌍",
-    layout="wide",   # Optional: Choose 'centered' or 'wide' layout
+    layout="centered",   # Optional: Choose 'centered' or 'wide' layout
 )
 
 # Load the dataset
