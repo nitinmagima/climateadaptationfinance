@@ -7,6 +7,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 
+st.set_page_config(
+    page_title="Climate Adaptation Finance 2024",
+    page_icon="🌍",
+    layout="wide",   # Optional: Choose 'centered' or 'wide' layout
+)
+
 # Load the dataset
 file_path = "data.xlsx"
 data = pd.ExcelFile(file_path)
