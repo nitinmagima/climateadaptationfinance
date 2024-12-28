@@ -29,7 +29,7 @@ climate_df[numeric_columns] = scaler.fit_transform(climate_df[numeric_columns])
 merged_df = governance_df.merge(finance_df, on="Country").merge(climate_df, on="Country")
 
 # Allow user to select categories for clustering
-st.title("Climate Adaptation Financial Vulnerability 2024 - Clustering Analysis")
+st.title("Clustering Analysis of Countries' Financial Vulnerability to Climate Adaptation - 2024")
 
 # Short explanation about the process
 st.write("This dashboard performs clustering analysis by merging publicly available governance, finance, and climate data for various countries. Numeric features are scaled to values between 0 and 100, where **100** indicates the most vulnerable and **0** the least vulnerable conditions. Clustering is applied to group countries with similar characteristics, and missing values are handled by imputing with the column median to ensure completeness. Users can select categories and clusters to explore the map and charts below.")
